@@ -22,16 +22,15 @@ import timber.log.Timber;
 
 public class NearbyMissingPictures {
 
-    //private static final double INITIAL_RADIUS = 1.0; // in kilometers
+    private static final double DEFAULT_RADIUS = 100.0; // in kilometers
     //private static final double MAX_RADIUS = 300.0; // in kilometers
     //private static final double RADIUS_MULTIPLIER = 1.618;
     private static final Uri WIKIDATA_QUERY_URL = Uri.parse("https://query.wikidata.org/sparql");
     private static final Uri WIKIDATA_QUERY_UI_URL = Uri.parse("https://query.wikidata.org/");
     private final String wikidataQuery;
-    private double radius = INITIAL_RADIUS;
-    private List<Place> places;
+    private double radius;
     
-    private String GPX-Header;
+    private static final String GPX_Header = ;
     private String GPX-Footer;
 
     public NearbyMissingPictures() {
@@ -62,7 +61,7 @@ public class NearbyMissingPictures {
         URLConnection conn = new URL(url).openConnection();
         conn.setRequestProperty("Accept", "text/tab-separated-values");
         
-        //Read output of query and write the output to a GPX file.
+        //Read output of query and parse it to get the fields ITEM_NAME, ITEM_TYPE, ITEM_LATITUDE, ITEM_LONGITUDE. 
         BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
 
         String line;
@@ -73,7 +72,29 @@ public class NearbyMissingPictures {
             if (!line.startsWith("\"Point")) {
                 continue;
             }
+
+            String[] fields = line.split("\t");
+            String wikiDataLink = Utils.stripLocalizedString(fields[0]);// Use it as ITEM entity along with matcher (as below) to get ITEM_URL
+            String point = fields[1];                                   // ITEM_LATITUDE, ITEM_LONGITUDE
+            String name = Utils.stripLocalizedString(fields[2]);        // ITEM_NAME
+            String type = Utils.stripLocalizedString(fields[3]);        // ITEM_TYPE
+
+            double latitude;
+            double longitude;
+            Matcher matcher =
+                    Pattern.compile("Point\\(([^ ]+) ([^ ]+)\\)").matcher(point);
+            if (!matcher.find()) {
+                continue;
+            }
+            try {
+                longitude = Double.parseDouble(matcher.group(1));
+                latitude = Double.parseDouble(matcher.group(2));
+            } catch (NumberFormatException e) {
+                throw new RuntimeException("LatLng parse error: " + point);
+            }
         }
+        
+        
         in.close();
     }
 }
